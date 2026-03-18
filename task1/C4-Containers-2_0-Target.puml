@@ -1,0 +1,62 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_LEFT_RIGHT()
+title Система «Будущее 2.0» — через год
+
+Person(usr_bi, "Бизнес-пользователь", "Самостоятельная работа с отчетами")
+Person(usr_ops, "Оператор клиники", "Работа с медицинскими записями")
+System_Ext(ext_regs, "Регуляторы", "Требования к отчетности и защите данных")
+System_Ext(ext_partners, "Партнеры", "Фармацевты и производители оборудования")
+
+Boundary(bnd_portal, "Портал и аналитика") {
+  Container(app_portal, "Портал самообслуживания", "Web + SSO", "Каталог данных, заявки на доступ")
+  Container(app_bi, "BI-система", "Power BI/аналог", "Дашборды и ad-hoc отчеты (без медкарт)")
+}
+
+Boundary(bnd_data, "Платформа данных (Lakehouse)") {
+  ContainerDb(db_lake, "Хранилище Lakehouse", "Object Storage + ACID", "Слои Bronze/Silver/Gold, разграничение прав")
+  Container(app_sem, "Семантический слой", "dbt/semantic", "Единые метрики, RLS/CLS")
+}
+
+Boundary(bnd_integ, "Интеграционный слой") {
+  Container(svc_bus, "Событийная шина", "Kafka/PubSub", "Слабосвязанная интеграция между доменами")
+  Container(svc_api, "API-шлюз", "Gateway", "Контракты и аутентификация")
+}
+
+Boundary(bnd_care, "Домен Клиника") {
+  ContainerDb(db_ehr, "EHR/EMR OLTP", "RDBMS", "Электронные карты и истории болезни")
+  Container(svc_ai, "Сервисы ИИ", "Python", "Диагностика и рекомендации")
+}
+
+Boundary(bnd_fin, "Домен Финтех") {
+  Container(svc_core, "Core Banking", "Java/Golang", "Счета, платежи, кредитование")
+}
+
+Boundary(bnd_legacy, "Легаси (временно)") {
+  ContainerDb(db_dwh, "DWH SQL Server 2008", "MS SQL", "Текущие отчеты на миграции")
+}
+
+Rel(usr_bi, app_portal, "SSO")
+Rel(usr_bi, app_bi, "Просмотр дашбордов (S1)")
+Rel(usr_ops, db_ehr, "Работа с пациентами")
+
+Rel(db_ehr, svc_api, "CRUD")
+Rel(svc_ai, svc_bus, "События ИИ")
+Rel(svc_core, svc_bus, "Транзакционные события")
+Rel(ext_partners, svc_api, "B2B API")
+Rel(ext_regs, app_bi, "Регуляторная отчетность (S1)")
+
+Rel(svc_api, svc_bus, "Команды и события")
+Rel(svc_bus, db_lake, "Потоковая загрузка (S3)")
+Rel(db_dwh, db_lake, "CDC/Batch загрузка (S3)")
+
+Rel(db_lake, app_sem, "Доменные витрины")
+Rel(app_sem, app_bi, "Датасеты и метрики (S1)")
+Rel(app_portal, app_sem, "Публикация и заявки (S1,S2)")
+
+Rel(db_lake, svc_ai, "Выборки для обучения и инференса, без PHI в BI (S2)")
+Rel(db_lake, svc_core, "Признаки скоринга и антифрод (S2)")
+
+rectangle "Условные обозначения:\n\nS1 — Быстрая подготовка отчетности\nS2 — Независимое развитие доменов\nS3 — Масштабирование под новые бизнесы" as Legend_Scenarios
+
+@enduml
