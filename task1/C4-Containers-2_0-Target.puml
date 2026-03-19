@@ -16,10 +16,15 @@ Boundary(bnd_portal, "Портал и аналитика") {
 Boundary(bnd_data, "Платформа данных (Lakehouse)") {
   ContainerDb(db_lake, "Хранилище Lakehouse", "Object Storage + ACID", "Слои Bronze/Silver/Gold, разграничение прав")
   Container(app_sem, "Семантический слой", "dbt/semantic", "Единые метрики, RLS/CLS")
+  Container(app_orchestrator, "Оркестратор пайплайнов", "Airflow/Prefect", "Управление ETL/ELT джобами")
+  Container(app_batch_engine, "Batch Processing Engine", "Apache Spark", "Тяжелые трансформации, большие объемы")
+  ContainerDb(db_catalog, "Каталог данных", "DataHub/Amundsen", "Метаданные, discoverability")
 }
 
 Boundary(bnd_integ, "Интеграционный слой") {
   Container(svc_bus, "Событийная шина", "Kafka/PubSub", "Слабосвязанная интеграция между доменами")
+  Container(svc_connect, "Kafka Connect", "Kafka Connect", "CDC и адаптеры к внешним системам")
+  Container(svc_integ_services, "Integration Services", "Apache Camel", "Трансформации, маршрутизация, ФЛК")
   Container(svc_api, "API-шлюз", "Gateway", "Контракты и аутентификация")
 }
 
@@ -41,14 +46,28 @@ Rel(usr_bi, app_bi, "Просмотр дашбордов (S1)")
 Rel(usr_ops, db_ehr, "Работа с пациентами")
 
 Rel(db_ehr, svc_api, "CRUD")
-Rel(svc_ai, svc_bus, "События ИИ")
-Rel(svc_core, svc_bus, "Транзакционные события")
+Rel(svc_ai, svc_bus, "События ИИ (S2)")
+Rel(svc_core, svc_bus, "Транзакционные события (S2)")
 Rel(ext_partners, svc_api, "B2B API")
 Rel(ext_regs, app_bi, "Регуляторная отчетность (S1)")
 
-Rel(svc_api, svc_bus, "Команды и события")
-Rel(svc_bus, db_lake, "Потоковая загрузка (S3)")
-Rel(db_dwh, db_lake, "CDC/Batch загрузка (S3)")
+Rel(svc_api, svc_bus, "Команды и события (S4)")
+Rel(svc_bus, svc_integ_services, "Обработка и трансформация")
+Rel(svc_integ_services, db_lake, "Трансформированные данные (S4,S5)")
+Rel(svc_integ_services, svc_bus, "Обработанные события (S4)")
+
+Rel(db_dwh, svc_connect, "CDC/Batch из DWH")
+Rel(svc_connect, db_lake, "Загрузка в Lakehouse (S5)")
+Rel(svc_connect, svc_bus, "События из внешних систем (S4)")
+
+Rel(svc_bus, db_lake, "Прямая потоковая загрузка (S1)")
+
+Rel(app_orchestrator, db_lake, "Запуск пайплайнов")
+Rel(app_orchestrator, app_batch_engine, "Запуск batch-джобов")
+Rel(app_orchestrator, app_sem, "Запуск dbt-трансформаций")
+Rel(app_batch_engine, db_lake, "Тяжелые трансформации (S3)")
+Rel(db_catalog, db_lake, "Метаданные и lineage")
+Rel(db_catalog, app_sem, "Семантические определения")
 
 Rel(db_lake, app_sem, "Доменные витрины")
 Rel(app_sem, app_bi, "Датасеты и метрики (S1)")
@@ -57,6 +76,6 @@ Rel(app_portal, app_sem, "Публикация и заявки (S1,S2)")
 Rel(db_lake, svc_ai, "Выборки для обучения и инференса, без PHI в BI (S2)")
 Rel(db_lake, svc_core, "Признаки скоринга и антифрод (S2)")
 
-rectangle "Условные обозначения:\n\nS1 — Быстрая подготовка отчетности\nS2 — Независимое развитие доменов\nS3 — Масштабирование под новые бизнесы" as Legend_Scenarios
+rectangle "Условные обозначения:\n\nS1 — Быстрая подготовка отчетности\nS2 — Независимое развитие доменов\nS3 — Масштабирование под новые бизнесы\nS4 — Сложные интеграции и трансформации\nS5 — Batch-обработка больших объемов" as Legend_Scenarios
 
 @enduml
