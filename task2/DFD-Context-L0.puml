@@ -1,0 +1,49 @@
+@startuml DFD-L0-Context
+!includeurl https://raw.githubusercontent.com/ArmanAvanesyan/DFD-PlantUML/main/DFD_Level_1.puml
+
+startDfd(Simple)
+
+External(ext_biz, "Бизнес-пользователи")
+External(ext_partners, "Партнеры: фарма и производители устройств")
+External(ext_regs, "Регуляторы и аудиторы")
+
+Process("Будущее 2.0 — обработка данных")
+    SubProcess(proc_portal,  "5.0", "Портал самообслуживания и витрины")
+    SubProcess(proc_mesh,    "6.0", "Интеграция: Kafka, CDC, API")
+    SubProcess(proc_gov,     "7.0", "Управление данными: IAM, ABAC, каталог, качество")
+    SubProcess(proc_care,    "1.0", "Домен Клиника: ЭМК, учет, инвентарь")
+    SubProcess(proc_ai,      "2.0", "Домен Медицинские изображения и ИИ")
+    SubProcess(proc_fin,     "3.0", "Домен Финтех")
+    SubProcess(proc_partner, "4.0", "Домен Партнеры: фарма и устройства")
+
+    DataStore(store_lake,  "Платформа данных (Lakehouse: Bronze/Silver)")
+    DataStore(store_marts, "Доменные витрины (Gold)")
+    DataStore(store_meta,  "Каталог, контракты, lineage")
+DataFlows()
+
+' Портал
+Flow(ext_biz, proc_portal, "Запросы отчетов и срезов")
+Flow(proc_portal, store_marts, "Чтение витрин с учетом политик")
+Flow(store_marts, proc_portal, "Наборы данных и дашборды")
+
+' Источники данных
+Flow(proc_care,    proc_mesh, "События клиники и справочники (обезличенные)")
+Flow(proc_ai,      proc_mesh, "Результаты инференса: метаданные и скоринги")
+Flow(proc_fin,     proc_mesh, "Транзакции, счета, кредиты")
+Flow(proc_partner, proc_mesh, "Каталоги, поставки, телеметрия")
+
+' Транспорт → платформа → витрины
+Flow(proc_mesh,  store_lake,  "CDC и события в Bronze")
+Flow(store_lake, store_marts, "Верификация и моделирование в Gold")
+
+' Управление и безопасность
+Flow(proc_gov, proc_portal, "Политики доступа и маскирование")
+Flow(proc_gov, proc_mesh,   "Схемы и контракты событий")
+Flow(proc_gov, store_marts, "Каталог, lineage, качество данных")
+Flow(store_marts, proc_gov, "Метрики качества и lineage")
+
+' Регуляторы
+Flow(store_marts, ext_regs, "Агрегированная регламентная отчетность")
+
+endDfd()
+@enduml

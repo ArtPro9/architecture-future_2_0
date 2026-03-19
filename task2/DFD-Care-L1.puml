@@ -1,0 +1,35 @@
+@startuml DFD-L1-Care-AI
+!includeurl https://raw.githubusercontent.com/ArmanAvanesyan/DFD-PlantUML/main/DFD_Level_1.puml
+
+startDfd(Simple)
+
+External(ext_ops, "Операторы клиники")
+
+Process("Клиника → Интеграция → ИИ → Витрина")
+    SubProcess(proc_visit, "1.1", "Визиты и назначения (с обезличенными ключами)")
+    SubProcess(proc_inv,   "1.2", "Инвентарь и справочники")
+    SubProcess(proc_mesh,  "6.1", "Интеграционный слой: CDC и события")
+    SubProcess(proc_inf,   "2.1", "ИИ-инференс по метаданным")
+    SubProcess(proc_gov,   "7.1", "Политики, маскирование, контракты")
+    SubProcess(proc_read,  "5.1", "Портал и BI: запросы и срезы")
+
+    DataStore(store_lake,  "Lakehouse (Bronze/Silver)")
+    DataStore(store_marts, "Доменные витрины (Gold, без ЭМК и изображений)")
+DataFlows()
+
+Flow(ext_ops, proc_visit, "Данные визита и назначений")
+Flow(proc_visit, proc_mesh, "События визитов (обезличенные)")
+Flow(proc_inv,   proc_mesh, "Справочники и остатки (CDC)")
+
+Flow(proc_mesh,  store_lake,  "Сырье в Bronze")
+Flow(store_lake, proc_inf,    "Признаки и метаданные исследований (обезличенные)")
+Flow(proc_inf,   proc_mesh,   "Результаты инференса: скоринги и теги")
+Flow(proc_mesh,  store_lake,  "AI-inferences в Silver")
+Flow(store_lake, store_marts, "Encounters и AI-Inferences в Gold")
+
+Flow(proc_gov, store_marts, "Политики, каталог, маскирование")
+Flow(proc_read, store_marts, "Чтение витрин")
+Flow(store_marts, proc_read, "Наборы данных и дашборды")
+
+endDfd()
+@enduml

@@ -1,0 +1,35 @@
+@startuml DFD-L1-Fintech
+!includeurl https://raw.githubusercontent.com/ArmanAvanesyan/DFD-PlantUML/main/DFD_Level_1.puml
+
+startDfd(Simple)
+
+External(ext_fin, "Пользователи финансового домена: риск и AML")
+External(ext_regs, "Регуляторы и аудиторы")
+
+Process("Финтех ↔ Интеграция ↔ Витрина")
+    SubProcess(proc_accounts, "3.1", "Счета и договоры")
+    SubProcess(proc_tx,       "3.2", "Транзакции и платежи")
+    SubProcess(proc_credit,   "3.3", "Кредиты и скоринг")
+    SubProcess(proc_mesh,     "6.2", "События и Kafka + CDC")
+    SubProcess(proc_gov,      "7.2", "ABAC, качество данных, каталог")
+    SubProcess(proc_read,     "5.2", "Портал и BI: отчеты и дашборды")
+
+    DataStore(store_lake,  "Lakehouse")
+    DataStore(store_marts, "Витрины Финтеха (Gold)")
+DataFlows()
+
+Flow(ext_fin, proc_read, "Запросы отчетов по рискам и AML")
+Flow(proc_accounts, proc_mesh, "События по счетам и договорам")
+Flow(proc_tx,       proc_mesh, "События транзакций и платежей")
+Flow(proc_credit,   proc_mesh, "Кредитные события и скоринг")
+
+Flow(proc_mesh,  store_lake,  "Сырые потоки")
+Flow(store_lake, store_marts, "Accounts, Transactions, CreditPortfolio в Gold")
+
+Flow(proc_gov, store_marts, "Политики, маскирование, качество")
+Flow(proc_read, store_marts, "Чтение витрин")
+Flow(store_marts, proc_read, "Срезы и дашборды")
+Flow(store_marts, ext_regs,  "Агрегированная регламентная отчетность")
+
+endDfd()
+@enduml
